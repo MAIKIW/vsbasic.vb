@@ -1,74 +1,81 @@
-Sub SplitDataUltimate()
+Sub SplitDataUltimatePro()
     Dim wsMain As Worksheet, wsDest As Worksheet
+    Dim lastRowMain As Long, i As Long, destRow As Long
+    Dim colStudio As Integer, rowHeader As Long
+    Dim studioName As String, safeSheetName As String
     Dim cellHeader As Range
-    Dim colStudio As Integer, rowHeader As Long, lastRow As Long, i As Long
-    Dim studioName As String, destRow As Long
-    Dim dict As Object
+    Dim dictSheets As Object ' เปลี่ยนมาจำตัว "Object ชีท" ไว้ในสมองแทนการจำชื่อ
     
-    ' 1. ตั้งค่าให้ทำงานที่ชีท Main
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
     Set wsMain = ThisWorkbook.Sheets("Main")
     
-    ' 2. เรดาร์ค้นหาหัวตาราง: หาว่าคำว่า "ค่าย" อยู่บรรทัดไหนและคอลัมน์ไหน
+    ' เรดาร์หาหัวตารางคำว่า "ค่าย"
     Set cellHeader = wsMain.Cells.Find(What:="ค่าย", LookIn:=xlValues, LookAt:=xlPart)
-    
     If cellHeader Is Nothing Then
-        MsgBox "หาหัวตารางคำว่า 'ค่าย' ไม่เจอครับ รบกวนตรวจสอบในชีท Main ว่ามีคำนี้ไหม", vbCritical
+        MsgBox "ไม่พบคำว่า 'ค่าย' ในหัวตารางครับ", vbCritical
         Exit Sub
     End If
     
     colStudio = cellHeader.Column
     rowHeader = cellHeader.Row
-    lastRow = wsMain.Cells(wsMain.Rows.Count, colStudio).End(xlUp).Row
+    lastRowMain = wsMain.Cells(wsMain.Rows.Count, colStudio).End(xlUp).Row
     
-    If lastRow <= rowHeader Then
-        MsgBox "เจอหัวตารางแล้ว แต่ไม่พบข้อมูลหนังด้านล่างเลยครับ", vbExclamation
-        Exit Sub
-    End If
+    Set dictSheets = CreateObject("Scripting.Dictionary")
     
-    ' ปิดระบบหน้าจอกะพริบเพื่อความรวดเร็ว
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-    Set dict = CreateObject("Scripting.Dictionary")
-    
-    ' 3. เริ่มเดินก๊อปปี้ข้อมูลใต้หัวตารางลงมาทีละบรรทัด
-    For i = rowHeader + 1 To lastRow
+    ' เริ่มลูปดึงข้อมูล
+    For i = rowHeader + 1 To lastRowMain
         studioName = Trim(wsMain.Cells(i, colStudio).Value)
         
         If studioName <> "" Then
-            ' ถ้าเพิ่งเจอค่ายนี้ครั้งแรก ให้ล้างชีทเก่าเตรียมไว้
-            If Not dict.Exists(studioName) Then
-                dict.Add studioName, 2 ' บันทึกไว้ว่าจะเริ่มวางข้อมูลที่บรรทัด 2
+            ' ถ้าเป็นการเจอค่ายนี้ครั้งแรก
+            If Not dictSheets.Exists(studioName) Then
                 
+                ' สร้างชื่อชีทที่ปลอดภัย (ลบอักขระต้องห้ามของ Excel ทิ้งให้หมด)
+                safeSheetName = Left(studioName, 31)
+                safeSheetName = Replace(safeSheetName, "/", "_")
+                safeSheetName = Replace(safeSheetName, "\", "_")
+                safeSheetName = Replace(safeSheetName, "?", "")
+                safeSheetName = Replace(safeSheetName, "*", "")
+                safeSheetName = Replace(safeSheetName, "[", "")
+                safeSheetName = Replace(safeSheetName, "]", "")
+                safeSheetName = Replace(safeSheetName, ":", "")
+                
+                ' เช็กว่ามีชีทนี้อยู่หรือยัง
                 On Error Resume Next
-                Set wsDest = ThisWorkbook.Sheets(Left(studioName, 31))
+                Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
                 
                 If wsDest Is Nothing Then
                     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-                    wsDest.Name = Left(studioName, 31)
+                    wsDest.Name = safeSheetName
                 Else
                     wsDest.Cells.Clear
                 End If
                 
-                ' ก๊อปปี้หัวตารางไปวางที่ชีทปลายทาง บรรทัดที่ 1
+                ' ก๊อปปี้หัวตารางไปวาง
                 wsMain.Range(wsMain.Cells(rowHeader, 1), wsMain.Cells(rowHeader, colStudio)).Copy Destination:=wsDest.Range("A1")
+                
+                ' *** ไม้ตาย: สั่งให้ Dictionary จำ Object ชีทไว้เลย จะได้ไม่ต้องควานหาชื่อชีทอีก ***
+                Set dictSheets(studioName) = wsDest
             End If
             
-            Set wsDest = ThisWorkbook.Sheets(Left(studioName, 31))
-            destRow = dict(studioName)
+            ' ดึง Object ชีทค่ายนั้นมาใช้ตรงๆ จากหน่วยความจำ
+            Set wsDest = dictSheets(studioName)
             
-            ' ก๊อปปี้ข้อมูลหนังเรื่องนั้นไปวาง
+            ' หาบรรทัดว่างสุดท้ายของชีทนั้นๆ อัตโนมัติ
+            destRow = wsDest.Cells(wsDest.Rows.Count, colStudio).End(xlUp).Row + 1
+            
+            ' ก๊อปปี้ข้อมูลทีละบรรทัดไปวาง
             wsMain.Range(wsMain.Cells(i, 1), wsMain.Cells(i, colStudio)).Copy Destination:=wsDest.Range("A" & destRow)
-            
-            ' จดจำว่าบรรทัดต่อไปต้องวางที่ไหน
-            dict(studioName) = destRow + 1
         End If
     Next i
     
-    ' จัดรูปแบบคอลัมน์วันที่ (C และ D) ให้แสดงผลถูกต้อง
+    ' จัดรูปแบบคอลัมน์ C และ D ให้เป็นวันที่
     Dim key As Variant
-    For Each key In dict.keys
-        Set wsDest = ThisWorkbook.Sheets(Left(key, 31))
+    For Each key In dictSheets.keys
+        Set wsDest = dictSheets(key)
         wsDest.Columns("C:D").NumberFormat = "dd/mm/yyyy"
         wsDest.Columns.AutoFit
     Next key
@@ -76,5 +83,5 @@ Sub SplitDataUltimate()
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     
-    MsgBox "ดึงข้อมูลมาเรียบร้อยแล้วครับ! ลองเช็กดูที่ชีทค่ายหนังได้เลย", vbInformation
+    MsgBox "ทะลวงข้อมูลสำเร็จเรียบร้อยครับ! เช็กแต่ละชีทได้เลย", vbInformation
 End Sub
