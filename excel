@@ -6,39 +6,47 @@ Sub SplitDataByStudio()
     Dim cell As Range
     Dim studioName As String
 
-    ' ปิดการอัปเดตหน้าจอชั่วคราวเพื่อให้โค้ดรันเสร็จในพริบตา
+    ' ปิดอัปเดตหน้าจอเพื่อความรวดเร็ว
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
 
-    Set wsMain = ThisWorkbook.Sheets("รวมค่าย")
+    ' เปลี่ยนชื่อเป็น Main ตามที่คุณแก้ไว้
+    Set wsMain = ThisWorkbook.Sheets("Main")
+    
+    ' เช็กว่ามีข้อมูลในหน้า Main ไหม
     lastRow = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
+    If lastRow < 2 Then
+        MsgBox "No data found in Main sheet.", vbExclamation
+        Exit Sub
+    End If
 
-    ' สร้างชีทชั่วคราวเพื่อคัดกรองชื่อค่ายหนังแบบไม่ซ้ำ
+    ' สร้างชีทชั่วคราว
     Set wsTemp = ThisWorkbook.Sheets.Add
     wsMain.Range("E1:E" & lastRow).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=wsTemp.Range("A1"), Unique:=True
 
-    ' เริ่มลูปสร้างชีทและดึงข้อมูลตามชื่อค่าย
+    ' ลูปเพื่อดึงข้อมูลไปวาง
     For Each cell In wsTemp.Range("A2:A" & wsTemp.Cells(wsTemp.Rows.Count, "A").End(xlUp).Row)
-        studioName = cell.Value
+        studioName = Trim(cell.Value) ' ใช้ Trim เพื่อตัดช่องว่างที่อาจเผลอเคาะผิดออกให้
         
         If studioName <> "" Then
-            ' เช็กว่ามีชีทชื่อค่ายนี้หรือยัง ถ้ามีให้เคลียร์ข้อมูลเก่า ถ้าไม่มีให้สร้างใหม่
+            ' เช็กว่ามีชีทอยู่แล้วหรือยัง
             On Error Resume Next
             Set wsDest = ThisWorkbook.Sheets(studioName)
             On Error GoTo 0
             
+            ' ถ้ายังไม่มีชีทให้สร้างใหม่ ถ้ามีอยู่แล้วให้ล้างข้อมูลเก่าทิ้งทั้งหมดให้สะอาด
             If wsDest Is Nothing Then
                 Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-                wsDest.Name = studioName
+                wsDest.Name = Left(studioName, 31) ' ป้องกันชื่อชีทยาวเกิน
             Else
                 wsDest.Cells.Clear
             End If
             
-            ' ใช้ฟิลเตอร์ดึงข้อมูลเฉพาะค่ายนั้นไปวางที่ชีทใหม่
-            wsMain.Range("A1:E" & lastRow).AutoFilter Field:=5, Criteria1:=studioName
+            ' คัดลอกข้อมูล
+            wsMain.Range("A1:E" & lastRow).AutoFilter Field:=5, Criteria1:=cell.Value
             wsMain.Range("A1:E" & lastRow).SpecialCells(xlCellTypeVisible).Copy Destination:=wsDest.Range("A1")
             
-            ' จัดรูปแบบคอลัมน์ C และ D ให้เป็นวันที่
+            ' จัดฟอร์แมตวันที่คอลัมน์ C และ D
             wsDest.Columns("C:D").NumberFormat = "dd/mm/yyyy"
             wsDest.Columns.AutoFit
             
@@ -46,12 +54,13 @@ Sub SplitDataByStudio()
         End If
     Next cell
 
-    ' ล้างตัวกรองและลบชีทชั่วคราวทิ้ง
+    ' ล้างตัวกรองและลบชีทชั่วคราว
     wsMain.AutoFilterMode = False
     wsTemp.Delete
 
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
 
-    MsgBox "แยกข้อมูลค่ายหนังเสร็จเรียบร้อยแล้ว!", vbInformation
+    ' แจ้งเตือนเมื่อเสร็จ (เปลี่ยนเป็นภาษาอังกฤษแล้ว)
+    MsgBox "Success! All studio sheets have been updated.", vbInformation
 End Sub
