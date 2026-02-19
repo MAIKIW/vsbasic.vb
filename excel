@@ -1,62 +1,80 @@
-Sub SplitDataByStudio()
-    Dim wsMain As Worksheet
-    Dim wsTemp As Worksheet
-    Dim wsDest As Worksheet
-    Dim lastRow As Long
-    Dim cell As Range
-    Dim studioName As String
-
-    Application.ScreenUpdating = False
-    Application.DisplayAlerts = False
-
+Sub SplitDataUltimate()
+    Dim wsMain As Worksheet, wsDest As Worksheet
+    Dim cellHeader As Range
+    Dim colStudio As Integer, rowHeader As Long, lastRow As Long, i As Long
+    Dim studioName As String, destRow As Long
+    Dim dict As Object
+    
+    ' 1. ตั้งค่าให้ทำงานที่ชีท Main
     Set wsMain = ThisWorkbook.Sheets("Main")
     
-    ' 1. ปลดล็อก Filter ทุกอย่างในหน้า Main ก่อนเริ่มงาน (แก้ปัญหาข้อมูลค้าง/มองไม่เห็นข้อมูล)
-    If wsMain.AutoFilterMode Then wsMain.AutoFilterMode = False
-    If wsMain.FilterMode Then wsMain.ShowAllData
+    ' 2. เรดาร์ค้นหาหัวตาราง: หาว่าคำว่า "ค่าย" อยู่บรรทัดไหนและคอลัมน์ไหน
+    Set cellHeader = wsMain.Cells.Find(What:="ค่าย", LookIn:=xlValues, LookAt:=xlPart)
     
-    lastRow = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
-    If lastRow < 2 Then Exit Sub
-
-    ' สร้างชีทชั่วคราวเพื่อดึงรายชื่อค่ายแบบไม่ซ้ำ
-    Set wsTemp = ThisWorkbook.Sheets.Add
-    wsMain.Range("E1:E" & lastRow).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=wsTemp.Range("A1"), Unique:=True
-
-    ' เริ่มลูปส่งข้อมูลเข้าชีทต่างๆ
-    For Each cell In wsTemp.Range("A2:A" & wsTemp.Cells(wsTemp.Rows.Count, "A").End(xlUp).Row)
-        studioName = cell.Value ' ใช้ชื่อแบบเป๊ะๆ ดิบๆ ตามหน้า Main เลย (ไม่ตัดเว้นวรรคแล้ว)
+    If cellHeader Is Nothing Then
+        MsgBox "หาหัวตารางคำว่า 'ค่าย' ไม่เจอครับ รบกวนตรวจสอบในชีท Main ว่ามีคำนี้ไหม", vbCritical
+        Exit Sub
+    End If
+    
+    colStudio = cellHeader.Column
+    rowHeader = cellHeader.Row
+    lastRow = wsMain.Cells(wsMain.Rows.Count, colStudio).End(xlUp).Row
+    
+    If lastRow <= rowHeader Then
+        MsgBox "เจอหัวตารางแล้ว แต่ไม่พบข้อมูลหนังด้านล่างเลยครับ", vbExclamation
+        Exit Sub
+    End If
+    
+    ' ปิดระบบหน้าจอกะพริบเพื่อความรวดเร็ว
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    Set dict = CreateObject("Scripting.Dictionary")
+    
+    ' 3. เริ่มเดินก๊อปปี้ข้อมูลใต้หัวตารางลงมาทีละบรรทัด
+    For i = rowHeader + 1 To lastRow
+        studioName = Trim(wsMain.Cells(i, colStudio).Value)
         
         If studioName <> "" Then
-            On Error Resume Next
-            Set wsDest = ThisWorkbook.Sheets(studioName)
-            On Error GoTo 0
-            
-            ' ถ้ายังไม่มีชีทให้สร้างใหม่ ถ้ามีแล้วให้เคลียร์ของเก่าให้เกลี้ยง
-            If wsDest Is Nothing Then
-                Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-                wsDest.Name = Left(studioName, 31)
-            Else
-                wsDest.Cells.Clear
+            ' ถ้าเพิ่งเจอค่ายนี้ครั้งแรก ให้ล้างชีทเก่าเตรียมไว้
+            If Not dict.Exists(studioName) Then
+                dict.Add studioName, 2 ' บันทึกไว้ว่าจะเริ่มวางข้อมูลที่บรรทัด 2
+                
+                On Error Resume Next
+                Set wsDest = ThisWorkbook.Sheets(Left(studioName, 31))
+                On Error GoTo 0
+                
+                If wsDest Is Nothing Then
+                    Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
+                    wsDest.Name = Left(studioName, 31)
+                Else
+                    wsDest.Cells.Clear
+                End If
+                
+                ' ก๊อปปี้หัวตารางไปวางที่ชีทปลายทาง บรรทัดที่ 1
+                wsMain.Range(wsMain.Cells(rowHeader, 1), wsMain.Cells(rowHeader, colStudio)).Copy Destination:=wsDest.Range("A1")
             End If
             
-            ' คัดลอกข้อมูลแบบระบุตัวตนเป๊ะๆ ("=" & studioName)
-            wsMain.Range("A1:E" & lastRow).AutoFilter Field:=5, Criteria1:="=" & studioName
-            wsMain.Range("A1:E" & lastRow).SpecialCells(xlCellTypeVisible).Copy Destination:=wsDest.Range("A1")
+            Set wsDest = ThisWorkbook.Sheets(Left(studioName, 31))
+            destRow = dict(studioName)
             
-            ' จัดฟอร์แมตวันที่คอลัมน์ C และ D
-            wsDest.Columns("C:D").NumberFormat = "dd/mm/yyyy"
-            wsDest.Columns.AutoFit
+            ' ก๊อปปี้ข้อมูลหนังเรื่องนั้นไปวาง
+            wsMain.Range(wsMain.Cells(i, 1), wsMain.Cells(i, colStudio)).Copy Destination:=wsDest.Range("A" & destRow)
             
-            Set wsDest = Nothing
+            ' จดจำว่าบรรทัดต่อไปต้องวางที่ไหน
+            dict(studioName) = destRow + 1
         End If
-    Next cell
-
-    ' ล้างตัวกรองและลบชีทชั่วคราวทิ้ง
-    wsMain.AutoFilterMode = False
-    wsTemp.Delete
-
+    Next i
+    
+    ' จัดรูปแบบคอลัมน์วันที่ (C และ D) ให้แสดงผลถูกต้อง
+    Dim key As Variant
+    For Each key In dict.keys
+        Set wsDest = ThisWorkbook.Sheets(Left(key, 31))
+        wsDest.Columns("C:D").NumberFormat = "dd/mm/yyyy"
+        wsDest.Columns.AutoFit
+    Next key
+    
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
-
-    MsgBox "Success! All data restored and updated.", vbInformation
+    
+    MsgBox "ดึงข้อมูลมาเรียบร้อยแล้วครับ! ลองเช็กดูที่ชีทค่ายหนังได้เลย", vbInformation
 End Sub
