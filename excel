@@ -1,78 +1,80 @@
-Sub SplitDataUltimatePro()
+Sub SplitDataExactLayout()
     Dim wsMain As Worksheet, wsDest As Worksheet
-    Dim lastRowMain As Long, i As Long, destRow As Long
-    Dim colStudio As Integer, rowHeader As Long
+    Dim lastRowMain As Long, i As Long
+    Dim destRow As Long
     Dim studioName As String, safeSheetName As String
-    Dim cellHeader As Range
-    Dim dictSheets As Object ' เปลี่ยนมาจำตัว "Object ชีท" ไว้ในสมองแทนการจำชื่อ
+    Dim dictSheets As Object
     
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     
+    ' 1. กำหนดหน้าชีทหลักเป็น Main
     Set wsMain = ThisWorkbook.Sheets("Main")
     
-    ' เรดาร์หาหัวตารางคำว่า "ค่าย"
-    Set cellHeader = wsMain.Cells.Find(What:="ค่าย", LookIn:=xlValues, LookAt:=xlPart)
-    If cellHeader Is Nothing Then
-        MsgBox "ไม่พบคำว่า 'ค่าย' ในหัวตารางครับ", vbCritical
+    ' หาบรรทัดสุดท้ายที่มีข้อมูลในคอลัมน์ E (ค่ายหนัง)
+    lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
+    
+    ' ถ้าข้อมูลมีแค่หัวตาราง (ไม่มีข้อมูลแถว 3 ลงไป) ให้หยุดทำงาน
+    If lastRowMain < 3 Then
+        MsgBox "ไม่พบข้อมูลหนังตั้งแต่แถวที่ 3 เป็นต้นไปครับ", vbExclamation
         Exit Sub
     End If
     
-    colStudio = cellHeader.Column
-    rowHeader = cellHeader.Row
-    lastRowMain = wsMain.Cells(wsMain.Rows.Count, colStudio).End(xlUp).Row
-    
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
-    ' เริ่มลูปดึงข้อมูล
-    For i = rowHeader + 1 To lastRowMain
-        studioName = Trim(wsMain.Cells(i, colStudio).Value)
+    ' 2. เริ่มดึงข้อมูลตั้งแต่แถวที่ 3 เป็นต้นไป
+    For i = 3 To lastRowMain
+        studioName = Trim(wsMain.Cells(i, 5).Value) ' คอลัมน์ E คือคอลัมน์ที่ 5
         
         If studioName <> "" Then
-            ' ถ้าเป็นการเจอค่ายนี้ครั้งแรก
-            If Not dictSheets.Exists(studioName) Then
+            
+            ' แปลงชื่อค่ายให้เป็นชื่อชีทที่ปลอดภัย (ลบสัญลักษณ์ที่ Excel ห้ามตั้งชื่อชีททิ้ง)
+            safeSheetName = Left(studioName, 31)
+            safeSheetName = Replace(safeSheetName, "/", "_")
+            safeSheetName = Replace(safeSheetName, "\", "_")
+            safeSheetName = Replace(safeSheetName, "?", "")
+            safeSheetName = Replace(safeSheetName, "*", "")
+            safeSheetName = Replace(safeSheetName, "[", "")
+            safeSheetName = Replace(safeSheetName, "]", "")
+            safeSheetName = Replace(safeSheetName, ":", "")
+            
+            ' ถ้าเจอค่ายนี้ครั้งแรกในรอบนี้
+            If Not dictSheets.Exists(safeSheetName) Then
                 
-                ' สร้างชื่อชีทที่ปลอดภัย (ลบอักขระต้องห้ามของ Excel ทิ้งให้หมด)
-                safeSheetName = Left(studioName, 31)
-                safeSheetName = Replace(safeSheetName, "/", "_")
-                safeSheetName = Replace(safeSheetName, "\", "_")
-                safeSheetName = Replace(safeSheetName, "?", "")
-                safeSheetName = Replace(safeSheetName, "*", "")
-                safeSheetName = Replace(safeSheetName, "[", "")
-                safeSheetName = Replace(safeSheetName, "]", "")
-                safeSheetName = Replace(safeSheetName, ":", "")
-                
-                ' เช็กว่ามีชีทนี้อยู่หรือยัง
+                ' เช็กว่ามีชีทค่ายนี้หรือยัง
                 On Error Resume Next
                 Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
                 
                 If wsDest Is Nothing Then
+                    ' สร้างชีทใหม่
                     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
                     wsDest.Name = safeSheetName
                 Else
+                    ' ถ้ามีชีทอยู่แล้ว ให้ล้างข้อมูลเก่าทิ้ง
                     wsDest.Cells.Clear
                 End If
                 
-                ' ก๊อปปี้หัวตารางไปวาง
-                wsMain.Range(wsMain.Cells(rowHeader, 1), wsMain.Cells(rowHeader, colStudio)).Copy Destination:=wsDest.Range("A1")
+                ' **จุดสำคัญ:** ก๊อปปี้หัวตาราง แถวที่ 1 และ 2 ไปวางที่ชีทใหม่
+                wsMain.Rows("1:2").Copy Destination:=wsDest.Rows("1:2")
                 
-                ' *** ไม้ตาย: สั่งให้ Dictionary จำ Object ชีทไว้เลย จะได้ไม่ต้องควานหาชื่อชีทอีก ***
-                Set dictSheets(studioName) = wsDest
+                ' จดจำชีทนี้ไว้ในระบบ
+                Set dictSheets(safeSheetName) = wsDest
             End If
             
-            ' ดึง Object ชีทค่ายนั้นมาใช้ตรงๆ จากหน่วยความจำ
-            Set wsDest = dictSheets(studioName)
+            ' ดึงชีทเป้าหมายมาใช้งาน
+            Set wsDest = dictSheets(safeSheetName)
             
-            ' หาบรรทัดว่างสุดท้ายของชีทนั้นๆ อัตโนมัติ
-            destRow = wsDest.Cells(wsDest.Rows.Count, colStudio).End(xlUp).Row + 1
+            ' หาแถวว่างถัดไปในชีทเป้าหมาย (หาจากคอลัมน์ E)
+            destRow = wsDest.Cells(wsDest.Rows.Count, "E").End(xlUp).Row + 1
             
-            ' ก๊อปปี้ข้อมูลทีละบรรทัดไปวาง
-            wsMain.Range(wsMain.Cells(i, 1), wsMain.Cells(i, colStudio)).Copy Destination:=wsDest.Range("A" & destRow)
+            ' ก๊อปปี้ข้อมูลบรรทัดที่ i ไปวาง
+            wsMain.Range("A" & i & ":E" & i).Copy Destination:=wsDest.Range("A" & destRow)
+            
         End If
     Next i
     
-    ' จัดรูปแบบคอลัมน์ C และ D ให้เป็นวันที่
+    ' 3. จัดรูปแบบวันที่ให้เป็นระเบียบ
     Dim key As Variant
     For Each key In dictSheets.keys
         Set wsDest = dictSheets(key)
@@ -83,5 +85,5 @@ Sub SplitDataUltimatePro()
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     
-    MsgBox "ทะลวงข้อมูลสำเร็จเรียบร้อยครับ! เช็กแต่ละชีทได้เลย", vbInformation
+    MsgBox "แยกข้อมูลสำเร็จ! ดึงข้อมูลตั้งแต่แถวที่ 3 ตามโครงสร้างเป๊ะๆ เลยครับ", vbInformation
 End Sub
