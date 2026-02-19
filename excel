@@ -6,44 +6,41 @@ Sub SplitDataByStudio()
     Dim cell As Range
     Dim studioName As String
 
-    ' ปิดอัปเดตหน้าจอเพื่อความรวดเร็ว
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
 
-    ' เปลี่ยนชื่อเป็น Main ตามที่คุณแก้ไว้
     Set wsMain = ThisWorkbook.Sheets("Main")
     
-    ' เช็กว่ามีข้อมูลในหน้า Main ไหม
+    ' 1. ปลดล็อก Filter ทุกอย่างในหน้า Main ก่อนเริ่มงาน (แก้ปัญหาข้อมูลค้าง/มองไม่เห็นข้อมูล)
+    If wsMain.AutoFilterMode Then wsMain.AutoFilterMode = False
+    If wsMain.FilterMode Then wsMain.ShowAllData
+    
     lastRow = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
-    If lastRow < 2 Then
-        MsgBox "No data found in Main sheet.", vbExclamation
-        Exit Sub
-    End If
+    If lastRow < 2 Then Exit Sub
 
-    ' สร้างชีทชั่วคราว
+    ' สร้างชีทชั่วคราวเพื่อดึงรายชื่อค่ายแบบไม่ซ้ำ
     Set wsTemp = ThisWorkbook.Sheets.Add
     wsMain.Range("E1:E" & lastRow).AdvancedFilter Action:=xlFilterCopy, CopyToRange:=wsTemp.Range("A1"), Unique:=True
 
-    ' ลูปเพื่อดึงข้อมูลไปวาง
+    ' เริ่มลูปส่งข้อมูลเข้าชีทต่างๆ
     For Each cell In wsTemp.Range("A2:A" & wsTemp.Cells(wsTemp.Rows.Count, "A").End(xlUp).Row)
-        studioName = Trim(cell.Value) ' ใช้ Trim เพื่อตัดช่องว่างที่อาจเผลอเคาะผิดออกให้
+        studioName = cell.Value ' ใช้ชื่อแบบเป๊ะๆ ดิบๆ ตามหน้า Main เลย (ไม่ตัดเว้นวรรคแล้ว)
         
         If studioName <> "" Then
-            ' เช็กว่ามีชีทอยู่แล้วหรือยัง
             On Error Resume Next
             Set wsDest = ThisWorkbook.Sheets(studioName)
             On Error GoTo 0
             
-            ' ถ้ายังไม่มีชีทให้สร้างใหม่ ถ้ามีอยู่แล้วให้ล้างข้อมูลเก่าทิ้งทั้งหมดให้สะอาด
+            ' ถ้ายังไม่มีชีทให้สร้างใหม่ ถ้ามีแล้วให้เคลียร์ของเก่าให้เกลี้ยง
             If wsDest Is Nothing Then
                 Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
-                wsDest.Name = Left(studioName, 31) ' ป้องกันชื่อชีทยาวเกิน
+                wsDest.Name = Left(studioName, 31)
             Else
                 wsDest.Cells.Clear
             End If
             
-            ' คัดลอกข้อมูล
-            wsMain.Range("A1:E" & lastRow).AutoFilter Field:=5, Criteria1:=cell.Value
+            ' คัดลอกข้อมูลแบบระบุตัวตนเป๊ะๆ ("=" & studioName)
+            wsMain.Range("A1:E" & lastRow).AutoFilter Field:=5, Criteria1:="=" & studioName
             wsMain.Range("A1:E" & lastRow).SpecialCells(xlCellTypeVisible).Copy Destination:=wsDest.Range("A1")
             
             ' จัดฟอร์แมตวันที่คอลัมน์ C และ D
@@ -54,13 +51,12 @@ Sub SplitDataByStudio()
         End If
     Next cell
 
-    ' ล้างตัวกรองและลบชีทชั่วคราว
+    ' ล้างตัวกรองและลบชีทชั่วคราวทิ้ง
     wsMain.AutoFilterMode = False
     wsTemp.Delete
 
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
 
-    ' แจ้งเตือนเมื่อเสร็จ (เปลี่ยนเป็นภาษาอังกฤษแล้ว)
-    MsgBox "Success! All studio sheets have been updated.", vbInformation
+    MsgBox "Success! All data restored and updated.", vbInformation
 End Sub
