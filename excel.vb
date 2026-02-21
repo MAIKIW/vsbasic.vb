@@ -8,27 +8,22 @@ Sub SplitDataExactLayout()
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
     
-    ' 1. กำหนดหน้าชีทหลักเป็น Main
     Set wsMain = ThisWorkbook.Sheets("Main")
     
-    ' หาบรรทัดสุดท้ายที่มีข้อมูลในคอลัมน์ E (ค่ายหนัง)
     lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
     
-    ' ถ้าข้อมูลมีแค่หัวตาราง (ไม่มีข้อมูลแถว 3 ลงไป) ให้หยุดทำงาน
     If lastRowMain < 3 Then
-        MsgBox "ไม่พบข้อมูลหนังตั้งแต่แถวที่ 3 เป็นต้นไปครับ", vbExclamation
+        MsgBox "No Data", vbExclamation
         Exit Sub
     End If
     
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
-    ' 2. เริ่มดึงข้อมูลตั้งแต่แถวที่ 3 เป็นต้นไป
     For i = 3 To lastRowMain
         studioName = Trim(wsMain.Cells(i, 5).Value) ' คอลัมน์ E คือคอลัมน์ที่ 5
         
         If studioName <> "" Then
             
-            ' แปลงชื่อค่ายให้เป็นชื่อชีทที่ปลอดภัย (ลบสัญลักษณ์ที่ Excel ห้ามตั้งชื่อชีททิ้ง)
             safeSheetName = Left(studioName, 31)
             safeSheetName = Replace(safeSheetName, "/", "_")
             safeSheetName = Replace(safeSheetName, "\", "_")
@@ -38,43 +33,33 @@ Sub SplitDataExactLayout()
             safeSheetName = Replace(safeSheetName, "]", "")
             safeSheetName = Replace(safeSheetName, ":", "")
             
-            ' ถ้าเจอค่ายนี้ครั้งแรกในรอบนี้
             If Not dictSheets.Exists(safeSheetName) Then
                 
-                ' เช็กว่ามีชีทค่ายนี้หรือยัง
                 On Error Resume Next
                 Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
                 
                 If wsDest Is Nothing Then
-                    ' สร้างชีทใหม่
                     Set wsDest = ThisWorkbook.Sheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count))
                     wsDest.Name = safeSheetName
                 Else
-                    ' ถ้ามีชีทอยู่แล้ว ให้ล้างข้อมูลเก่าทิ้ง
                     wsDest.Cells.Clear
                 End If
                 
-                ' **จุดสำคัญ:** ก๊อปปี้หัวตาราง แถวที่ 1 และ 2 ไปวางที่ชีทใหม่
                 wsMain.Rows("1:2").Copy Destination:=wsDest.Rows("1:2")
                 
-                ' จดจำชีทนี้ไว้ในระบบ
                 Set dictSheets(safeSheetName) = wsDest
             End If
             
-            ' ดึงชีทเป้าหมายมาใช้งาน
             Set wsDest = dictSheets(safeSheetName)
             
-            ' หาแถวว่างถัดไปในชีทเป้าหมาย (หาจากคอลัมน์ E)
             destRow = wsDest.Cells(wsDest.Rows.Count, "E").End(xlUp).Row + 1
             
-            ' ก๊อปปี้ข้อมูลบรรทัดที่ i ไปวาง
             wsMain.Range("A" & i & ":E" & i).Copy Destination:=wsDest.Range("A" & destRow)
             
         End If
     Next i
     
-    ' 3. จัดรูปแบบวันที่ให้เป็นระเบียบ
     Dim key As Variant
     For Each key In dictSheets.keys
         Set wsDest = dictSheets(key)
@@ -85,5 +70,5 @@ Sub SplitDataExactLayout()
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     
-    MsgBox "แยกข้อมูลสำเร็จ! ดึงข้อมูลตั้งแต่แถวที่ 3 ตามโครงสร้างเป๊ะๆ เลยครับ", vbInformation
+    MsgBox "Finish", vbInformation
 End Sub
