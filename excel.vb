@@ -2,7 +2,7 @@ Sub SplitDataExactLayout()
     Dim wsMain As Worksheet, wsDest As Worksheet
     Dim lastRowMain As Long, i As Long
     Dim destRow As Long
-    Dim studioName As String, safeSheetName As String
+    Dim studioName As String, safeSheetName As String, dictKey As String
     Dim dictSheets As Object
     
     Application.ScreenUpdating = False
@@ -12,21 +12,19 @@ Sub SplitDataExactLayout()
     lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
     
     If lastRowMain < 3 Then
-        MsgBox "No data", vbExclamation
+        MsgBox "No Data", vbExclamation
         Exit Sub
     End If
     
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
-    ' ***สนใจตัวพิมพ์เล็ก/ใหญ่ (A = a) ***
-    dictSheets.CompareMode = 1 
-    
     For i = 3 To lastRowMain
-        ' ***ลบช่องว่างหน้า หลัง และตรงกลางคำทิ้ง ***
+        ' ลบช่องว่างส่วนเกินหน้า-หลัง
         studioName = Application.WorksheetFunction.Trim(wsMain.Cells(i, 5).Value)
         
         If studioName <> "" Then
             
+            ' แปลงชื่อให้เป็นชื่อชีทที่ปลอดภัย (ใช้ตั้งชื่อชีท)
             safeSheetName = Left(studioName, 31)
             safeSheetName = Replace(safeSheetName, "/", "_")
             safeSheetName = Replace(safeSheetName, "\", "_")
@@ -36,7 +34,11 @@ Sub SplitDataExactLayout()
             safeSheetName = Replace(safeSheetName, "]", "")
             safeSheetName = Replace(safeSheetName, ":", "")
             
-            If Not dictSheets.Exists(safeSheetName) Then
+            ' *** ไม้ตาย: บังคับให้เป็น "ตัวพิมพ์ใหญ่ทั้งหมด" เพื่อใช้เป็นกุญแจความจำ ตัดปัญหา D เล็ก/ใหญ่ แบบ 100% ***
+            dictKey = UCase(safeSheetName)
+            
+            ' เช็กว่าในหน่วยความจำมีกุญแจนี้หรือยัง
+            If Not dictSheets.Exists(dictKey) Then
                 On Error Resume Next
                 Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
@@ -49,10 +51,10 @@ Sub SplitDataExactLayout()
                 End If
                 
                 wsMain.Rows("1:2").Copy Destination:=wsDest.Rows("1:2")
-                Set dictSheets(safeSheetName) = wsDest
+                Set dictSheets(dictKey) = wsDest
             End If
             
-            Set wsDest = dictSheets(safeSheetName)
+            Set wsDest = dictSheets(dictKey)
             destRow = wsDest.Cells(wsDest.Rows.Count, "E").End(xlUp).Row + 1
             
             wsMain.Range("A" & i & ":E" & i).Copy Destination:=wsDest.Range("A" & destRow)
