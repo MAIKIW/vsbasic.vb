@@ -9,18 +9,21 @@ Sub SplitDataExactLayout()
     Application.DisplayAlerts = False
     
     Set wsMain = ThisWorkbook.Sheets("Main")
-    
     lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
     
     If lastRowMain < 3 Then
-        MsgBox "No Data", vbExclamation
+        MsgBox "ไม่พบข้อมูลหนังตั้งแต่แถวที่ 3 เป็นต้นไปครับ", vbExclamation
         Exit Sub
     End If
     
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
+    ' *** อัปเกรดความฉลาด: สั่งให้หน่วยความจำไม่สนใจตัวพิมพ์เล็ก/ใหญ่ (A = a) ***
+    dictSheets.CompareMode = 1 
+    
     For i = 3 To lastRowMain
-        studioName = Trim(wsMain.Cells(i, 5).Value) ' คอลัมน์ E คือคอลัมน์ที่ 5
+        ' *** อัปเกรดการทำความสะอาด: ลบช่องว่างส่วนเกินทั้งหน้า หลัง และตรงกลางคำทิ้ง ***
+        studioName = Application.WorksheetFunction.Trim(wsMain.Cells(i, 5).Value)
         
         If studioName <> "" Then
             
@@ -34,7 +37,6 @@ Sub SplitDataExactLayout()
             safeSheetName = Replace(safeSheetName, ":", "")
             
             If Not dictSheets.Exists(safeSheetName) Then
-                
                 On Error Resume Next
                 Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
@@ -47,12 +49,10 @@ Sub SplitDataExactLayout()
                 End If
                 
                 wsMain.Rows("1:2").Copy Destination:=wsDest.Rows("1:2")
-                
                 Set dictSheets(safeSheetName) = wsDest
             End If
             
             Set wsDest = dictSheets(safeSheetName)
-            
             destRow = wsDest.Cells(wsDest.Rows.Count, "E").End(xlUp).Row + 1
             
             wsMain.Range("A" & i & ":E" & i).Copy Destination:=wsDest.Range("A" & destRow)
@@ -70,5 +70,5 @@ Sub SplitDataExactLayout()
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     
-    MsgBox "Finish", vbInformation
+    MsgBox "แยกข้อมูลสำเร็จ! ขจัดปัญหาตัวพิมพ์เล็ก-ใหญ่และช่องว่างเรียบร้อยครับ", vbInformation
 End Sub
