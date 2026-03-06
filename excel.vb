@@ -12,7 +12,7 @@ Sub SplitDataExactLayout()
     lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
     
     If lastRowMain < 3 Then
-        MsgBox "ไม่พบข้อมูลหนังตั้งแต่แถวที่ 3 เป็นต้นไปครับ", vbExclamation
+        MsgBox "No data", vbExclamation
         Exit Sub
     End If
     
@@ -70,5 +70,5 @@ Sub SplitDataExactLayout()
     Application.ScreenUpdating = True
     Application.DisplayAlerts = True
     
-    MsgBox "แยกข้อมูลสำเร็จ! ขจัดปัญหาตัวพิมพ์เล็ก-ใหญ่และช่องว่างเรียบร้อยครับ", vbInformation
+    MsgBox "finish", vbInformation
 End Sub
