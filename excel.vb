@@ -18,11 +18,11 @@ Sub SplitDataExactLayout()
     
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
-    ' *** อัปเกรดความฉลาด: สั่งให้หน่วยความจำไม่สนใจตัวพิมพ์เล็ก/ใหญ่ (A = a) ***
+    ' ***สนใจตัวพิมพ์เล็ก/ใหญ่ (A = a) ***
     dictSheets.CompareMode = 1 
     
     For i = 3 To lastRowMain
-        ' *** อัปเกรดการทำความสะอาด: ลบช่องว่างส่วนเกินทั้งหน้า หลัง และตรงกลางคำทิ้ง ***
+        ' ***ลบช่องว่างหน้า หลัง และตรงกลางคำทิ้ง ***
         studioName = Application.WorksheetFunction.Trim(wsMain.Cells(i, 5).Value)
         
         If studioName <> "" Then
