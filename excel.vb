@@ -1,8 +1,8 @@
-Sub SplitDataExactLayout()
+Sub SplitDataSuperCleanerFixed()
     Dim wsMain As Worksheet, wsDest As Worksheet
     Dim lastRowMain As Long, i As Long
     Dim destRow As Long
-    Dim studioName As String, safeSheetName As String, dictKey As String
+    Dim rawName As String, safeSheetName As String, dictKey As String
     Dim dictSheets As Object
     
     Application.ScreenUpdating = False
@@ -12,20 +12,20 @@ Sub SplitDataExactLayout()
     lastRowMain = wsMain.Cells(wsMain.Rows.Count, "E").End(xlUp).Row
     
     If lastRowMain < 3 Then
-        MsgBox "No Data", vbExclamation
+        MsgBox "No data", vbExclamation
         Exit Sub
     End If
     
     Set dictSheets = CreateObject("Scripting.Dictionary")
     
     For i = 3 To lastRowMain
-        ' ลบช่องว่างส่วนเกินหน้า-หลัง
-        studioName = Application.WorksheetFunction.Trim(wsMain.Cells(i, 5).Value)
+        rawName = wsMain.Cells(i, 5).Value
         
-        If studioName <> "" Then
+        If Trim(rawName) <> "" Then
             
-            ' แปลงชื่อให้เป็นชื่อชีทที่ปลอดภัย (ใช้ตั้งชื่อชีท)
-            safeSheetName = Left(studioName, 31)
+            ' 1. ทำความสะอาดเบื้องต้นสำหรับตั้งชื่อชีท
+            safeSheetName = Application.WorksheetFunction.Trim(rawName)
+            safeSheetName = Left(safeSheetName, 31)
             safeSheetName = Replace(safeSheetName, "/", "_")
             safeSheetName = Replace(safeSheetName, "\", "_")
             safeSheetName = Replace(safeSheetName, "?", "")
@@ -34,11 +34,26 @@ Sub SplitDataExactLayout()
             safeSheetName = Replace(safeSheetName, "]", "")
             safeSheetName = Replace(safeSheetName, ":", "")
             
-            ' *** ไม้ตาย: บังคับให้เป็น "ตัวพิมพ์ใหญ่ทั้งหมด" เพื่อใช้เป็นกุญแจความจำ ตัดปัญหา D เล็ก/ใหญ่ แบบ 100% ***
+            ' 2. เครื่องซักล้างคำขั้นเด็ดขาด
             dictKey = UCase(safeSheetName)
+            dictKey = Replace(dictKey, " ", "")
+            dictKey = Replace(dictKey, "-", "")
+            dictKey = Replace(dictKey, "S", "") 
+            
+            ' จัดกลุ่มพิเศษสำหรับกิจกรรมร่วมค้า
+            If InStr(dictKey, "กิจก") > 0 Or InStr(dictKey, "กิจก") > 0 Then
+                dictKey = "JOINTVENTURE"
+                safeSheetName = "กิจกรรมร่วมการค้า"
+            End If
             
             ' เช็กว่าในหน่วยความจำมีกุญแจนี้หรือยัง
             If Not dictSheets.Exists(dictKey) Then
+                
+                ' ****************************************************
+                ' จุดแก้บั๊กสำคัญ: สั่งให้ล้างความจำ (ทิ้งชีทเก่าในมือ) ทุกครั้ง
+                Set wsDest = Nothing 
+                ' ****************************************************
+                
                 On Error Resume Next
                 Set wsDest = ThisWorkbook.Sheets(safeSheetName)
                 On Error GoTo 0
